@@ -1,0 +1,13 @@
+    Co, Fe
+    Fe, Mn
+    Cu, Zn
+    K, Sn, Ca
+    K, Ca, Cd
+    Ba, Ti
+    Pb, As
+    Hg, As
+    Hg, As, Pb
+    Pb, S
+    Hg, P
+    Cr, Mn
+    Sb, Ca
