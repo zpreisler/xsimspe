@@ -38,7 +38,7 @@ if not os.path.exists(inputs_dir):
     
 NPHOTONSINTERVAL = 5
 NPHOTONSLINES = 5
-WFRACNUM = 6
+WFRACNUM = 3
 MAXNUMCPU = os.cpu_count() - 2
 
 #_____________________________________________________________________
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     processes = set()
     print(f"using {MAXNUMCPU} cores")
     for proc_num, weights in enumerate(w_fraction):
-        _file = gen_input_file(layer_elements, weights, dry_run = True)
+        _file = gen_input_file(layer_elements, weights)
         #command_string = f"echo proc: {proc_num:3} {_file}"
         command_string = _file
         processes.add(subprocess.Popen(command + [command_string]))
