@@ -20,7 +20,7 @@ except ImportError:
 if os.name == "posix":
     root_dir = "/home/rosario/progetti/xmimsim"
 else:
-    root_dir = "C:/Users/utente/"
+    root_dir = "C:/Users/utente"
 if not os.path.isdir(root_dir):
     raise ValueError(f'{root_dir} is not a directory or not exist')
     
@@ -39,7 +39,7 @@ if not os.path.exists(inputs_dir):
 NPHOTONSINTERVAL = 5
 NPHOTONSLINES = 5
 WFRACNUM = 3
-MAXNUMCPU = os.cpu_count() - 2
+MAXNUMCPU = os.cpu_count() if os.cpu_count() <= 4 else os.cpu_count() -2
 
 #_____________________________________________________________________
 def read_elements(file_to_read : str) -> list :
@@ -72,7 +72,7 @@ def gen_out_file_name(symbols, weights, thickness):
     return out_fname
 
 #_____________________________________________________________________
-def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False):
+def gen_input_file_from_API(layer_elements, w_fraction, thickness = None, dry_run = False):
     input_template_fname = os.path.join(work_dir, "input_template.xmsi")
     input_template = xms.Input.read_from_xml_file(input_template_fname)
     new_input = xms.Input.init_empty()
@@ -125,9 +125,11 @@ def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False
 
 if __name__ == "__main__":
     if os.name == "posix":
-        command = ["/bin/bash", "-c"]
+        command = ["xmimsim", "--disable-gpu", "--set-threads", "1"]
     else:
-        command = ["C:/Program Files/XMI-SIM 64-bit/Bin/xmimsim.exe", "--disable_gpu"]
+        command = ["C:/Program Files/XMI-SIM 64-bit/Bin/xmimsim.exe",
+                   "--disable_gpu",
+                   "--set-threads", "1"]
     elements_file = os.path.join(work_dir, "elements.txt")
     input_elements = read_elements(elements_file)
     # to do - loop on input_elements
@@ -140,10 +142,9 @@ if __name__ == "__main__":
     processes = set()
     print(f"using {MAXNUMCPU} cores")
     for proc_num, weights in enumerate(w_fraction):
-        _file = gen_input_file(layer_elements, weights)
-        #command_string = f"echo proc: {proc_num:3} {_file}"
-        command_string = _file
-        processes.add(subprocess.Popen(command + [command_string]))
+        Ifile = gen_input_file_from_API(layer_elements, weights)
+        #command_string = f"echo proc: {proc_num:3} {Ifile}"
+        processes.add(subprocess.Popen(command + [Ifile]))
         while len(processes) >= MAXNUMCPU:
             #time.sleep(0.5)
             processes.difference_update([
