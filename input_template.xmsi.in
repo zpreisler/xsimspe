@@ -33,18 +33,7 @@
       <density>0.001205</density>
       <thickness>1.5</thickness>
     </layer>
-    <layer>
-      <element>
-        <atomic_number>19</atomic_number>
-        <weight_fraction>50</weight_fraction>
-      </element>
-      <element>
-        <atomic_number>20</atomic_number>
-        <weight_fraction>50</weight_fraction>
-      </element>
-      <density>1.206</density>
-      <thickness>0.002</thickness>
-    </layer>
+    @reference_layer@
     <layer>
       <element>
         <atomic_number>1</atomic_number>

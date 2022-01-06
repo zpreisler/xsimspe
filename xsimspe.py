@@ -11,6 +11,8 @@ import os
 import numpy as np
 import subprocess
 import time
+import xml.etree.ElementTree as et
+from xml.dom import minidom
 
 try:
     from mendeleev import element as m_elem
@@ -68,7 +70,7 @@ def gen_out_file_name(symbols, weights, thickness):
         for item in items:
             out_fname += str(item)
         out_fname += "_"
-    out_fname += f"{thickness}"
+    out_fname += f"{thickness}_hydrocerussite"
     return out_fname
 
 #_____________________________________________________________________
@@ -123,6 +125,55 @@ def gen_input_file_from_API(layer_elements, w_fraction, thickness = None, dry_ru
         new_input.write_to_xml_file(os.path.join(inputs_dir, out_file_name + ".xmsi"))
     return os.path.join(inputs_dir, out_file_name + ".xmsi")
 
+#______________________________________________________________________
+def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False):
+    if not thickness:
+        thickness = 0.002
+    input_template_fname = os.path.join(work_dir, "input_template.xmsi.in")
+    e_symbol = []
+    e_density = []
+    atomic_num = []
+    for k, v in layer_elements.items():
+        e_symbol.append(k)
+        e_density.append(v.density)
+        atomic_num.append(v.atomic_number)
+    reference_layer = et.Element("layer")
+    for a, w in zip(atomic_num, w_fraction):
+        element = et.Element("element")
+        reference_layer.append(element)
+        atnum = et.SubElement(element, "atomic_number")
+        atnum.text = str(a)
+        wfrac = et.SubElement(element, "weight_fraction")
+        wfrac.text = str(w)
+    density = et.SubElement(reference_layer, "density")
+    density.text = str(layer_density(e_density, w_fraction))
+    thness = et.SubElement(reference_layer, "thickness")
+    thness.text = str(thickness)
+    
+    #xmlstr = minidom.parseString(et.tostring(reference_layer)).toprettyxml(indent = "  ")
+    #xmlstr = xmltxt[xmltxt.find('\n') + 1 : -1]
+    xmlstr = et.tostring(reference_layer).decode('utf-8')
+    out_file_name = gen_out_file_name(e_symbol,w_fraction,thickness)
+    output_file = os.path.join(data_dir, out_file_name + ".xmso")
+    input_template_str = ""
+    with open(input_template_fname) as it:
+        for line in it:
+            line = line.replace('\n', '')
+            if "@outputfile@" in line:
+                line = line.replace("@outputfile@", output_file)
+            elif "@n_photons_interval@" in line:
+                line = line.replace("@n_photons_interval@", str(NPHOTONSINTERVAL))
+            elif "@n_photons_line@" in line:
+                line = line.replace("@n_photons_interval@", str(NPHOTONSLINES))
+            elif "@reference_layer@" in line:
+                line = line.replace("@reference_layer@", xmlstr)
+            input_template_str += line.strip()
+    input_template_str = minidom.parseString(input_template_str).toprettyxml(indent = "  ")        
+    if not dry_run:
+        with open(os.path.join(inputs_dir, out_file_name + ".xmsi"), "w") as inout:
+            inout.write(input_template_str)
+    return os.path.join(inputs_dir, out_file_name + ".xmsi")
+
 if __name__ == "__main__":
     if os.name == "posix":
         command = ["xmimsim", "--disable-gpu", "--set-threads", "1"]
@@ -142,6 +193,8 @@ if __name__ == "__main__":
     processes = set()
     print(f"using {MAXNUMCPU} cores")
     for proc_num, weights in enumerate(w_fraction):
+        print(gen_input_file(layer_elements, weights, dry_run = True))
+        continue
         Ifile = gen_input_file_from_API(layer_elements, weights)
         #command_string = f"echo proc: {proc_num:3} {Ifile}"
         processes.add(subprocess.Popen(command + [Ifile]))
