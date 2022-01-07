@@ -22,7 +22,8 @@ except ImportError:
 if os.name == "posix":
     root_dir = "/home/rosario/progetti/xmimsim"
 else:
-    root_dir = "C:/Users/utente"
+    root_dir = "F:/rosario_sim"
+    os.makedirs(root_dir)
 if not os.path.isdir(root_dir):
     raise ValueError(f'{root_dir} is not a directory or not exist')
     
@@ -40,7 +41,7 @@ if not os.path.exists(inputs_dir):
     
 NPHOTONSINTERVAL = 5
 NPHOTONSLINES = 5
-WFRACNUM = 3
+WFRACNUM = 6
 MAXNUMCPU = os.cpu_count() if os.cpu_count() <= 4 else os.cpu_count() -2
 
 #_____________________________________________________________________
@@ -65,7 +66,7 @@ def layer_density(elements_densities, weight_fractions):
     
 #_____________________________________________________________________
 def gen_out_file_name(symbols, weights, thickness):
-    out_fname = f'{progname}-{version}_'
+    out_fname = f'{progname}_'
     for items in zip(symbols,np.round(weights, 2)):
         for item in items:
             out_fname += str(item)
@@ -164,7 +165,7 @@ def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False
             elif "@n_photons_interval@" in line:
                 line = line.replace("@n_photons_interval@", str(NPHOTONSINTERVAL))
             elif "@n_photons_line@" in line:
-                line = line.replace("@n_photons_interval@", str(NPHOTONSLINES))
+                line = line.replace("@n_photons_line@", str(NPHOTONSLINES))
             elif "@reference_layer@" in line:
                 line = line.replace("@reference_layer@", xmlstr)
             input_template_str += line.strip()
@@ -186,22 +187,28 @@ if __name__ == "__main__":
     # to do - loop on input_elements
     layer_elements = input_elements[0]
     num_elements = len(layer_elements.items())
-    # w_fraction loop
     wfrac = [np.linspace(0,1,WFRACNUM) for _ in range(num_elements)]
     w_fraction = np.array(np.meshgrid(*wfrac))
     w_fraction = w_fraction.T.reshape(-1,num_elements)[1:]
+    #normalize w_fraction
+    w_fraction_sum = w_fraction.sum(axis = 1)
+    for c in range(w_fraction.shape[1]):
+        w_fraction[:,c] = w_fraction[:,c]/w_fraction_sum
+    w_fraction = np.unique(w_fraction, axis = 0)
     processes = set()
+    # w_fraction loop
     print(f"using {MAXNUMCPU} cores")
     for proc_num, weights in enumerate(w_fraction):
-        print(gen_input_file(layer_elements, weights, dry_run = True))
-        continue
-        Ifile = gen_input_file_from_API(layer_elements, weights)
+        #print(gen_input_file(layer_elements, weights, dry_run = True))
+        Ifile = gen_input_file(layer_elements, weights)
         #command_string = f"echo proc: {proc_num:3} {Ifile}"
         processes.add(subprocess.Popen(command + [Ifile]))
+        print(f'processing {Ifile}')
         while len(processes) >= MAXNUMCPU:
-            #time.sleep(0.5)
+            time.sleep(0.5)
             processes.difference_update([
                 p for p in processes if p.poll() is not None])
-        
+    if os.name == 'posix':
+        os.wait()
         #print(gen_input_file(layer_elements, weights, dry_run = True))
 
