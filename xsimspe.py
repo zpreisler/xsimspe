@@ -186,26 +186,15 @@ def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False
             inout.write(input_template_str)
     return os.path.join(inputs_dir, out_file_name + ".xmsi")
 
-if __name__ == "__main__":
+#_______________________________________________________________________
+def singlecore_processing():
+    """One input file for core"""
     if os.name == "posix":
         command = ["xmimsim", "--disable-gpu", "--set-threads", "1"]
     else:
         command = ["C:/Program Files/XMI-SIM 64-bit/Bin/xmimsim.exe",
                    "--disable_gpu",
                    "--set-threads", "1"]
-    elements_file = os.path.join(work_dir, "elements.txt")
-    input_elements = read_elements(elements_file)
-    # to do - loop on input_elements
-    layer_elements = input_elements[0]
-    num_elements = len(layer_elements.items())
-    wfrac = [np.linspace(0,1,WFRACNUM) for _ in range(num_elements)]
-    w_fraction = np.array(np.meshgrid(*wfrac))
-    w_fraction = w_fraction.T.reshape(-1,num_elements)[1:]
-    #normalize w_fraction
-    w_fraction_sum = w_fraction.sum(axis = 1)
-    for c in range(w_fraction.shape[1]):
-        w_fraction[:,c] = w_fraction[:,c]/w_fraction_sum
-    w_fraction = np.unique(w_fraction, axis = 0)
     processes = set()
     # w_fraction loop
     print(f"using {MAXNUMCPU} cores")
@@ -224,5 +213,26 @@ if __name__ == "__main__":
                 p for p in processes if p.poll() is not None])
     if os.name == 'posix':
         os.wait()
-        #print(gen_input_file(layer_elements, weights, dry_run = True))
+
+def multicore_processing():
+    pass
+
+if __name__ == "__main__":
+    elements_file = os.path.join(work_dir, "elements.txt")
+    input_elements = read_elements(elements_file)
+    # to do - loop on input_elements
+    layer_elements = input_elements[0]
+    num_elements = len(layer_elements.items())
+    wfrac = [np.linspace(0,1,WFRACNUM) for _ in range(num_elements)]
+    w_fraction = np.array(np.meshgrid(*wfrac))
+    w_fraction = w_fraction.T.reshape(-1,num_elements)[1:]
+    #normalize w_fraction
+    w_fraction_sum = w_fraction.sum(axis = 1)
+    for c in range(w_fraction.shape[1]):
+        w_fraction[:,c] = w_fraction[:,c]/w_fraction_sum
+    w_fraction = np.unique(w_fraction, axis = 0)
+    start = time.time()
+    singlecore_processing()
+    stop = time.time()
+    print(f'time enlapsed: {stop - start}')
 
