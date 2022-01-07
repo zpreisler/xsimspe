@@ -4,9 +4,14 @@
 progname = "xsimspe"
 version = 0.1
 
-import gi
-gi.require_version("XmiMsim", "1.0")
-from gi.repository import XmiMsim as xms
+try:
+    import gi
+except ImportError:
+    USEAPI = False
+else:
+    USEAPI = True
+    gi.require_version("XmiMsim", "1.0")
+    from gi.repository import XmiMsim as xms
 import os
 import numpy as np
 import subprocess
@@ -203,7 +208,10 @@ if __name__ == "__main__":
     print(f"using {MAXNUMCPU} cores")
     for proc_num, weights in enumerate(w_fraction):
         #print(gen_input_file(layer_elements, weights, dry_run = True))
-        Ifile = gen_input_file(layer_elements, weights)
+        if USEAPI:
+            Ifile = gen_input_file_from_API(layer_elements, weights)
+        else:
+            Ifile = gen_input_file(layer_elements, weights)
         #command_string = f"echo proc: {proc_num:3} {Ifile}"
         processes.add(subprocess.Popen(command + [Ifile]))
         print(f'processing {Ifile}')
