@@ -215,6 +215,7 @@ def singlecore_processing():
         os.wait()
 
 def multicore_processing():
+    """Multicore for each input file at a time"""
     pass
 
 if __name__ == "__main__":
