@@ -25,17 +25,20 @@ except ImportError:
     print('mendeleev library is required\nInstall it with pip:\n  pip install mendeleev')
 
 if os.name == "posix":
-    root_dir = "/home/rosario/progetti/xmimsim"
+    user = os.getenv('USER')
+    if user == 'rosario':
+        root_dir = "/home/rosario/progetti/xmimsim"
+        work_dir = os.path.join(root_dir, "scripts/xsimspe")
+    else:
+        root_dir = f"/home/{user}/rosario_sim"
+        work_dir = os.path.join(root_dir, "xsimspe")
 else:
     root_dir = "F:/rosario_sim"
-    os.makedirs(root_dir, exist_ok = True)
-if not os.path.isdir(root_dir):
-    raise ValueError(f'{root_dir} is not a directory or not exist')
-
-if os.name == 'posix':    
-    work_dir = os.path.join(root_dir, "scripts/xsimspe")
-else:
     work_dir = os.path.join(root_dir, "xsimspe")
+
+if not os.path.exists(root_dir):
+    os.makedirs(root_dir, exist_ok = True)
+
 if not os.path.exists(work_dir):
     os.makedirs(work_dir, exist_ok = True)
 
