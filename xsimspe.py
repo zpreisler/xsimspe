@@ -25,6 +25,7 @@ except ImportError:
     print('mendeleev library is required\nInstall it with pip:\n  pip install mendeleev')
 
 if os.name == "posix":
+    dtd_file = "/usr/share/xmimsim/xmimsim-1.0.dtd" if USEAPI else "http://www.xmi.UGent.be/xml/xmimsim-1.0.dtd"
     user = os.getenv('USER')
     if user == 'rosario':
         root_dir = "/home/rosario/progetti/xmimsim"
@@ -33,7 +34,8 @@ if os.name == "posix":
         root_dir = f"/home/{user}/rosario_sim"
         work_dir = os.path.join(root_dir, "xsimspe")
 else:
-    root_dir = "F:/rosario_sim"
+    dtd_file = "http://www.xmi.UGent.be/xml/xmimsim-1.0.dtd"
+    root_dir = "C:\\Users\\XRAYLab\\rosario_sim"
     work_dir = os.path.join(root_dir, "xsimspe")
 
 if not os.path.exists(root_dir):
@@ -50,8 +52,8 @@ inputs_dir = os.path.join(data_dir, "input_files")
 if not os.path.exists(inputs_dir):
     os.makedirs(inputs_dir, exist_ok = True)
     
-NPHOTONSINTERVAL = 5
-NPHOTONSLINES = 5
+NPHOTONSINTERVAL = 100
+NPHOTONSLINES = 1000
 WFRACNUM = 6
 MAXNUMCPU = os.cpu_count() if os.cpu_count() <= 4 else os.cpu_count() -2
 
@@ -179,6 +181,8 @@ def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False
                 line = line.replace("@n_photons_line@", str(NPHOTONSLINES))
             elif "@reference_layer@" in line:
                 line = line.replace("@reference_layer@", xmlstr)
+            elif "@dtd_file@" in line:
+                line = line.replace("@dtd_file@", dtd_file)
             input_template_str += line.strip()
     input_template_str = minidom.parseString(input_template_str).toprettyxml(indent = "  ")        
     if not dry_run:
@@ -192,8 +196,8 @@ def singlecore_processing():
     if os.name == "posix":
         command = ["xmimsim", "--disable-gpu", "--set-threads", "1"]
     else:
-        command = ["C:/Program Files/XMI-SIM 64-bit/Bin/xmimsim.exe",
-                   "--disable_gpu",
+        command = ["C:\\Program Files\\XMI-MSIM 64-bit\\Bin\\xmimsim-cli.exe",
+                   "--disable-gpu",
                    "--set-threads", "1"]
     processes = set()
     # w_fraction loop
@@ -205,8 +209,11 @@ def singlecore_processing():
         else:
             Ifile = gen_input_file(layer_elements, weights)
         #command_string = f"echo proc: {proc_num:3} {Ifile}"
-        processes.add(subprocess.Popen(command + [Ifile]))
-        print(f'processing {Ifile}')
+        if os.name == 'posix':
+            processes.add(subprocess.Popen(command + [Ifile]))
+        else:
+            processes.add(subprocess.Popen(command + [Ifile], shell = True))
+        print(command + [Ifile])
         while len(processes) >= MAXNUMCPU:
             time.sleep(0.5)
             processes.difference_update([
