@@ -54,8 +54,10 @@ if not os.path.exists(inputs_dir):
     
 NPHOTONSINTERVAL = 100
 NPHOTONSLINES = 1000
-WFRACNUM = 6
+WFRACNUM = 3
 MAXNUMCPU = os.cpu_count() if os.cpu_count() <= 4 else os.cpu_count() -2
+SINGLECORE = False
+DRYRUN = False
 
 #_____________________________________________________________________
 def read_elements(file_to_read : str) -> list :
@@ -213,23 +215,40 @@ def singlecore_processing():
             processes.add(subprocess.Popen(command + [Ifile]))
         else:
             processes.add(subprocess.Popen(command + [Ifile], shell = True))
-        print(command + [Ifile])
+        print(f"processing {Ifile}")
         while len(processes) >= MAXNUMCPU:
             time.sleep(0.5)
             processes.difference_update([
                 p for p in processes if p.poll() is not None])
-    if os.name == 'posix':
-        os.wait()
+    for p in processes:
+        p.wait()
 
-def multicore_processing():
+#_____________________________________________________________________
+def multicore_processing(disable_gpu = True):
     """Multicore for each input file at a time"""
-    pass
-
+    if os.name == 'posix':
+        command = ["xmimsim"]
+    else:
+        command = ["C:\\Program Files\\XMI-MSIM 64-bit\\Bin\\xmimsim-cli.exe"]
+    if disable_gpu:
+        command  += ["--set-threads", str(MAXNUMCPU), "--disable-gpu"]
+    else:
+        command += ["--enable-gpu"]
+    #weight fractions loop
+    for weights in w_fraction:
+        if USEAPI:
+            Ifile = gen_input_file_from_API(layer_elements, weights)
+        else:
+            Ifile = gen_input_file(layer_elements, weights, dry_run = True)
+        print(f"processing {Ifile} with {MAXNUMCPU} core")
+        p = subprocess.Popen(command + [Ifile])
+        p.wait()
+    
 if __name__ == "__main__":
     elements_file = os.path.join(work_dir, "elements.txt")
     input_elements = read_elements(elements_file)
     # to do - loop on input_elements
-    layer_elements = input_elements[0]
+    layer_elements = input_elements[1]
     num_elements = len(layer_elements.items())
     wfrac = [np.linspace(0,1,WFRACNUM) for _ in range(num_elements)]
     w_fraction = np.array(np.meshgrid(*wfrac))
@@ -239,8 +258,12 @@ if __name__ == "__main__":
     for c in range(w_fraction.shape[1]):
         w_fraction[:,c] = w_fraction[:,c]/w_fraction_sum
     w_fraction = np.unique(w_fraction, axis = 0)
+    USEAPI = False
     start = time.time()
-    singlecore_processing()
+    if SINGLECORE:
+        singlecore_processing()
+    else:
+        multicore_processing()
     stop = time.time()
     print(f'time enlapsed: {stop - start}')
 
