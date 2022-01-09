@@ -2,7 +2,7 @@
 <!--<!DOCTYPE xmimsim SYSTEM "/usr/share/xmimsim/xmimsim-1.0.dtd">-->
 <!DOCTYPE xmimsim SYSTEM "@dtd_file@">
 <!-- <Creator>Unknown (rosario)</Creator>
- <Timestamp>2022-01-04 10:41:14 (CET)</Timestamp>
+ <Timestamp>@timestamp@</Timestamp>
  <Hostname>arch-asus</Hostname>-->
 <!--DO NOT MODIFY THIS FILE UNLESS YOU KNOW WHAT YOU ARE DOING!-->
 <xmimsim>

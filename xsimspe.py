@@ -143,6 +143,8 @@ def gen_input_file_from_API(layer_elements, w_fraction, thickness = None, dry_ru
 
 #______________________________________________________________________
 def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False):
+    lt = time.localtime()
+    timestamp = f'{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec} (CET)'
     if not thickness:
         thickness = 0.002
     input_template_fname = os.path.join(work_dir, "input_template.xmsi.in")
@@ -185,6 +187,8 @@ def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False
                 line = line.replace("@reference_layer@", xmlstr)
             elif "@dtd_file@" in line:
                 line = line.replace("@dtd_file@", dtd_file)
+            elif "@timestamp@" in line:
+                line = line.replace("@timestamp@", timestamp)
             input_template_str += line.strip()
     input_template_str = minidom.parseString(input_template_str).toprettyxml(indent = "  ")        
     if not dry_run:
