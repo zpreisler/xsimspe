@@ -2,7 +2,7 @@
 #xsimspe - X-ray simulated spectra using XmiMsim
 
 progname = "xsimspe"
-version = 0.1
+version = 1.0
 
 try:
     import gi
@@ -16,8 +16,10 @@ import os
 import numpy as np
 import subprocess
 import time
+import datetime
 import xml.etree.ElementTree as et
 from xml.dom import minidom
+from collections import namedtuple
 
 try:
     from mendeleev import element as m_elem
@@ -54,9 +56,9 @@ if not os.path.exists(inputs_dir):
     
 NPHOTONSINTERVAL = 100
 NPHOTONSLINES = 1000
-WFRACNUM = 3
+WFRACNUM = 4
 MAXNUMCPU = os.cpu_count() if os.cpu_count() <= 4 else os.cpu_count() -2
-SINGLECORE = True
+SINGLECORE = False
 DRYRUN = False
 
 #_____________________________________________________________________
@@ -196,30 +198,69 @@ def gen_input_file(layer_elements, w_fraction, thickness = None, dry_run = False
             inout.write(input_template_str)
     return os.path.join(inputs_dir, out_file_name + ".xmsi")
 
+#______________________________________________________________________
+def threads_distribution(num_cpu, num_Ifile):
+    """Compute the num of threads for each process
+    
+    This function is used in singlecore_processing.
+    Return a namedtuple with all necessary informations
+    """
+    if num_Ifile < num_cpu:
+        num_threads_for_Ifile = num_cpu // num_Ifile + 1
+        num_Ifile_multi_thread = num_cpu % num_Ifile
+        num_Ifile_single_thread = num_Ifile - num_Ifile_multi_thread
+    else:
+        num_threads_for_Ifile = 1
+        num_Ifile_multi_thread = 0
+        num_Ifile_single_thread = num_Ifile
+    result = namedtuple('threads_distribution', ['num_Ifile',
+                                                 'num_threads_for_Ifile',
+                                                 'num_Ifile_multi_thread',
+                                                 'num_Ifile_single_thread'])
+    return result(num_Ifile,
+                  num_threads_for_Ifile,
+                  num_Ifile_multi_thread,
+                  num_Ifile_single_thread)
+
 #_______________________________________________________________________
-def singlecore_processing():
-    """One input file for core"""
+def singlecore_processing(threads_distribution_result):
+    """One input file for core
+    
+    If the number of input file to process is less than the number of
+    cpus, some process will be started with a number of threads
+    greater than 1. In this way all the cores will be utilized.
+    """
+    tdr = threads_distribution_result
     if os.name == "posix":
-        command = ["xmimsim", "--disable-gpu", "--set-threads", "1"]
+        command = ["xmimsim",
+                   "--disable-gpu",
+                   "--set-threads", str(tdr.num_threads_for_Ifile)]
     else:
         command = ["C:\\Program Files\\XMI-MSIM 64-bit\\Bin\\xmimsim-cli.exe",
                    "--disable-gpu",
-                   "--set-threads", "1"]
+                   "--set-threads", str(tdr.num_threads_for_Ifile)]
+    num_threads_index = len(command) - 1
     processes = set()
     # w_fraction loop
-    print(f"using {MAXNUMCPU} cores")
+    print(f"Total threads: {MAXNUMCPU}")
+    #print(f"Threads for input file: {num_threads_for_Ifile}")
     for proc_num, weights in enumerate(w_fraction):
-        #print(gen_input_file(layer_elements, weights, dry_run = True))
         if USEAPI:
             Ifile = gen_input_file_from_API(layer_elements, weights, dry_run = DRYRUN)
         else:
             Ifile = gen_input_file(layer_elements, weights, dry_run = DRYRUN)
-        #command_string = f"echo proc: {proc_num:3} {Ifile}"
+            
+        if proc_num >= tdr.num_Ifile_multi_thread:
+            command[num_threads_index] = "1"
+            
         if os.name == 'posix':
             processes.add(subprocess.Popen(command + [Ifile]))
         else:
-            processes.add(subprocess.Popen(command + [Ifile], shell = True))
-        print(f"processing {Ifile}")
+            processes.add(subprocess.Popen(" ".join(command + [Ifile]), shell = True))
+        print(f"processing {Ifile} with {command[num_threads_index]} threads")
+        # if num_Ifile < num_cpu
+        # len(processes) will never be >= MAXNUMCPU
+        # so we never enter the while loop
         while len(processes) >= MAXNUMCPU:
             time.sleep(0.5)
             processes.difference_update([
@@ -244,7 +285,7 @@ def multicore_processing(disable_gpu = True):
             Ifile = gen_input_file_from_API(layer_elements, weights, dry_run = DRYRUN)
         else:
             Ifile = gen_input_file(layer_elements, weights, dry_run = DRYRUN)
-        print(f"processing {Ifile} with {MAXNUMCPU} core")
+        print(f"processing {Ifile} with {MAXNUMCPU} threads")
         p = subprocess.Popen(command + [Ifile])
         p.wait()
     
@@ -262,11 +303,13 @@ if __name__ == "__main__":
     for c in range(w_fraction.shape[1]):
         w_fraction[:,c] = w_fraction[:,c]/w_fraction_sum
     w_fraction = np.unique(w_fraction, axis = 0)
+    tdr = threads_distribution(MAXNUMCPU, w_fraction.shape[0])
     start = time.time()
     if SINGLECORE:
-        singlecore_processing()
+        singlecore_processing(tdr)
     else:
         multicore_processing()
     stop = time.time()
-    print(f'time enlapsed: {stop - start}')
+    e_time = stop - start
+    print(f'enlapsed time: {datetime.timedelta(seconds = e_time)}')
 
