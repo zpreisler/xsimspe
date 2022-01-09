@@ -56,7 +56,7 @@ NPHOTONSINTERVAL = 100
 NPHOTONSLINES = 1000
 WFRACNUM = 3
 MAXNUMCPU = os.cpu_count() if os.cpu_count() <= 4 else os.cpu_count() -2
-SINGLECORE = False
+SINGLECORE = True
 DRYRUN = False
 
 #_____________________________________________________________________
@@ -211,9 +211,9 @@ def singlecore_processing():
     for proc_num, weights in enumerate(w_fraction):
         #print(gen_input_file(layer_elements, weights, dry_run = True))
         if USEAPI:
-            Ifile = gen_input_file_from_API(layer_elements, weights)
+            Ifile = gen_input_file_from_API(layer_elements, weights, dry_run = DRYRUN)
         else:
-            Ifile = gen_input_file(layer_elements, weights)
+            Ifile = gen_input_file(layer_elements, weights, dry_run = DRYRUN)
         #command_string = f"echo proc: {proc_num:3} {Ifile}"
         if os.name == 'posix':
             processes.add(subprocess.Popen(command + [Ifile]))
@@ -241,9 +241,9 @@ def multicore_processing(disable_gpu = True):
     #weight fractions loop
     for weights in w_fraction:
         if USEAPI:
-            Ifile = gen_input_file_from_API(layer_elements, weights)
+            Ifile = gen_input_file_from_API(layer_elements, weights, dry_run = DRYRUN)
         else:
-            Ifile = gen_input_file(layer_elements, weights, dry_run = True)
+            Ifile = gen_input_file(layer_elements, weights, dry_run = DRYRUN)
         print(f"processing {Ifile} with {MAXNUMCPU} core")
         p = subprocess.Popen(command + [Ifile])
         p.wait()
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     elements_file = os.path.join(work_dir, "elements.txt")
     input_elements = read_elements(elements_file)
     # to do - loop on input_elements
-    layer_elements = input_elements[1]
+    layer_elements = input_elements[0]
     num_elements = len(layer_elements.items())
     wfrac = [np.linspace(0,1,WFRACNUM) for _ in range(num_elements)]
     w_fraction = np.array(np.meshgrid(*wfrac))
@@ -262,7 +262,6 @@ if __name__ == "__main__":
     for c in range(w_fraction.shape[1]):
         w_fraction[:,c] = w_fraction[:,c]/w_fraction_sum
     w_fraction = np.unique(w_fraction, axis = 0)
-    USEAPI = False
     start = time.time()
     if SINGLECORE:
         singlecore_processing()
